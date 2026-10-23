@@ -1,5 +1,6 @@
 package br.com.mentoria.validacao.servico;
 
+import br.com.mentoria.validacao.dominio.Cpf;
 import br.com.mentoria.validacao.dominio.DadosRecibo;
 import br.com.mentoria.validacao.dominio.ResultadoValidacao;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
@@ -26,6 +27,9 @@ public class ValidadorRecibo {
 
         checar(preenchido(dados.nomePaciente()), "Paciente identificado", atendidas, pendencias);
         checar(preenchido(dados.cpfPaciente()), "CPF do paciente encontrado", atendidas, pendencias);
+        if (preenchido(dados.cpfPaciente())) {
+            checar(Cpf.valido(dados.cpfPaciente()), "CPF do paciente valido", atendidas, pendencias);
+        }
         checar(preenchido(dados.documentoPrestador()), "CPF/CNPJ do prestador encontrado", atendidas, pendencias);
         checar(preenchido(dados.registroProfissional()), "Registro profissional encontrado", atendidas, pendencias);
 
