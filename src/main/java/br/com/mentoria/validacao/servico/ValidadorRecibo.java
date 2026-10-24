@@ -3,6 +3,7 @@ package br.com.mentoria.validacao.servico;
 import br.com.mentoria.validacao.dominio.Cnpj;
 import br.com.mentoria.validacao.dominio.Cpf;
 import br.com.mentoria.validacao.dominio.DadosRecibo;
+import br.com.mentoria.validacao.dominio.RegistroProfissional;
 import br.com.mentoria.validacao.dominio.ResultadoValidacao;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +38,10 @@ public class ValidadorRecibo {
             checar(Cpf.valido(doc) || Cnpj.valido(doc), "CPF/CNPJ do prestador valido", atendidas, pendencias);
         }
         checar(preenchido(dados.registroProfissional()), "Registro profissional encontrado", atendidas, pendencias);
+        if (preenchido(dados.registroProfissional())) {
+            checar(RegistroProfissional.valido(dados.registroProfissional()),
+                    "Registro profissional em formato valido (CRM, CRP ou CRO)", atendidas, pendencias);
+        }
 
         LocalDate atendimento = dados.dataAtendimento();
         if (atendimento == null) {
