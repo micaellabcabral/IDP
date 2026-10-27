@@ -1,5 +1,6 @@
 package br.com.mentoria.validacao.servico;
 
+import br.com.mentoria.validacao.dominio.Beneficiario;
 import br.com.mentoria.validacao.dominio.Cnpj;
 import br.com.mentoria.validacao.dominio.Cpf;
 import br.com.mentoria.validacao.dominio.DadosRecibo;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +26,18 @@ public class ValidadorRecibo {
     }
 
     public ResultadoValidacao validar(DadosRecibo dados, LocalDate hoje) {
+        return validar(dados, hoje, null);
+    }
+
+    public ResultadoValidacao validar(DadosRecibo dados, LocalDate hoje, Beneficiario beneficiario) {
         List<String> atendidas = new ArrayList<>();
         List<String> pendencias = new ArrayList<>();
+
+        if (beneficiario != null) {
+            checar(mesmoNome(dados.nomePaciente(), beneficiario.nome())
+                            && mesmosDigitos(dados.cpfPaciente(), beneficiario.cpf()),
+                    "Paciente confere com o beneficiario", atendidas, pendencias);
+        }
 
         checar(preenchido(dados.nomePaciente()), "Paciente identificado", atendidas, pendencias);
         checar(preenchido(dados.cpfPaciente()), "CPF do paciente encontrado", atendidas, pendencias);
@@ -58,6 +70,19 @@ public class ValidadorRecibo {
         boolean aprovado = pendencias.isEmpty();
         return new ResultadoValidacao(aprovado, aprovado ? StatusValidacao.APROVADO : StatusValidacao.REPROVADO,
                 atendidas, pendencias);
+    }
+
+    private static boolean mesmoNome(String a, String b) {
+        return preenchido(a) && preenchido(b) && normalizar(a).equals(normalizar(b));
+    }
+
+    private static String normalizar(String nome) {
+        String semAcento = Normalizer.normalize(nome, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        return semAcento.trim().replaceAll("\\s+", " ").toUpperCase();
+    }
+
+    private static boolean mesmosDigitos(String a, String b) {
+        return preenchido(a) && preenchido(b) && a.replaceAll("\\D", "").equals(b.replaceAll("\\D", ""));
     }
 
     private static boolean preenchido(String valor) {
