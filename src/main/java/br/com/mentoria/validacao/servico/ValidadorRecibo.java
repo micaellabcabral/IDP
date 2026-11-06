@@ -1,5 +1,6 @@
 package br.com.mentoria.validacao.servico;
 
+import br.com.mentoria.validacao.dominio.Cnpj;
 import br.com.mentoria.validacao.dominio.Cpf;
 import br.com.mentoria.validacao.dominio.DadosRecibo;
 import br.com.mentoria.validacao.dominio.ResultadoValidacao;
@@ -31,6 +32,10 @@ public class ValidadorRecibo {
             checar(Cpf.valido(dados.cpfPaciente()), "CPF do paciente valido", atendidas, pendencias);
         }
         checar(preenchido(dados.documentoPrestador()), "CPF/CNPJ do prestador encontrado", atendidas, pendencias);
+        if (preenchido(dados.documentoPrestador())) {
+            String doc = dados.documentoPrestador();
+            checar(Cpf.valido(doc) || Cnpj.valido(doc), "CPF/CNPJ do prestador valido", atendidas, pendencias);
+        }
         checar(preenchido(dados.registroProfissional()), "Registro profissional encontrado", atendidas, pendencias);
 
         LocalDate atendimento = dados.dataAtendimento();
