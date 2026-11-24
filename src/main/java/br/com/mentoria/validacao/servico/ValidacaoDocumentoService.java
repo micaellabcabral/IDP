@@ -46,7 +46,7 @@ public class ValidacaoDocumentoService {
         etapas.add(new EtapaPipeline(5, "Regras de negocio", "Validacao do recibo para reembolso",
                 resultado.status().name()));
 
-        return new ValidacaoResponse(request.nomeArquivo(), etapas, dados, resultado);
+        return new ValidacaoResponse(null, request.nomeArquivo(), etapas, dados, resultado);
     }
 
     private ResultadoValidacao aplicarRegras(DadosRecibo dados, String carteirinha) {
