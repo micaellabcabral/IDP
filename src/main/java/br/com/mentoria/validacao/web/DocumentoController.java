@@ -1,15 +1,20 @@
 package br.com.mentoria.validacao.web;
 
+import br.com.mentoria.validacao.persistencia.ValidacaoRegistro;
 import br.com.mentoria.validacao.servico.ValidacaoDocumentoService;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/documentos")
@@ -23,6 +28,7 @@ public class DocumentoController {
         this.service = service;
     }
 
+    /** Recibo ficticio com atendimento de 10 dias atras, para o exemplo nunca vencer o prazo. */
     @GetMapping("/exemplo")
     public ValidacaoRequest exemplo() {
         String conteudo = """
@@ -41,7 +47,21 @@ public class DocumentoController {
     }
 
     @PostMapping("/validar")
-    public ValidacaoResponse validar(@Valid @RequestBody ValidacaoRequest request) {
-        return service.validar(request);
+    public ResponseEntity<ValidacaoResponse> validar(@Valid @RequestBody ValidacaoRequest request) {
+        ValidacaoResponse resposta = service.validar(request);
+        return resposta.id() == null ? ResponseEntity.ok(resposta)
+                : ResponseEntity.ok().location(URI.create("/api/documentos/" + resposta.id())).body(resposta);
+    }
+
+    /** Historico: as 20 validacoes mais recentes (sem texto do documento nem dados pessoais). */
+    @GetMapping
+    public List<ValidacaoRegistro> listar() {
+        return service.listarRecentes();
+    }
+
+    /** Consulta o resultado salvo de uma validacao (sem texto do documento nem dados pessoais). */
+    @GetMapping("/{id}")
+    public ResponseEntity<ValidacaoRegistro> buscar(@PathVariable Long id) {
+        return ResponseEntity.of(service.buscar(id));
     }
 }

@@ -5,6 +5,8 @@ import br.com.mentoria.validacao.dominio.DadosRecibo;
 import br.com.mentoria.validacao.dominio.EtapaPipeline;
 import br.com.mentoria.validacao.dominio.ResultadoValidacao;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
+import br.com.mentoria.validacao.persistencia.ValidacaoRegistro;
+import br.com.mentoria.validacao.persistencia.ValidacaoRegistroRepository;
 import br.com.mentoria.validacao.web.ValidacaoRequest;
 import br.com.mentoria.validacao.web.ValidacaoResponse;
 import org.slf4j.Logger;
@@ -12,9 +14,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Orquestra o pipeline: documento, pre-processamento, OCR, interpretacao e regras.
@@ -31,16 +39,27 @@ public class ValidacaoDocumentoService {
     private final OcrService ocr;
     private final OpenCvService openCv;
     private final PdfService pdf;
+    private final ValidacaoRegistroRepository registros;
 
     public ValidacaoDocumentoService(InterpretadorIaService interpretador, ValidadorRecibo validador,
                                      CadastroBeneficiarios beneficiarios, OcrService ocr, OpenCvService openCv,
-                                     PdfService pdf) {
+                                     PdfService pdf, ValidacaoRegistroRepository registros) {
         this.interpretador = interpretador;
         this.validador = validador;
         this.beneficiarios = beneficiarios;
         this.ocr = ocr;
         this.openCv = openCv;
         this.pdf = pdf;
+        this.registros = registros;
+    }
+
+    public Optional<ValidacaoRegistro> buscar(Long id) {
+        return registros.findById(id);
+    }
+
+    /** As 20 validacoes mais recentes, da mais nova para a mais antiga. */
+    public List<ValidacaoRegistro> listarRecentes() {
+        return registros.findTop20ByOrderByCriadoEmDescIdDesc();
     }
 
     public ValidacaoResponse validar(ValidacaoRequest request) {
@@ -102,6 +121,14 @@ public class ValidacaoDocumentoService {
             dados = interpretador.extrairLocal(texto);
         }
         ResultadoValidacao resultado = aplicarRegras(dados, request.carteirinhaBeneficiario());
+        String chave = chaveRecibo(dados);
+        if (chave != null && registros.existsByChaveReciboAndStatusNot(chave, StatusValidacao.REPROVADO)) {
+            List<String> pendencias = new ArrayList<>(resultado.pendencias());
+            pendencias.add("Recibo ja enviado anteriormente (mesmo numero e mesmo prestador)");
+            resultado = new ResultadoValidacao(false, StatusValidacao.REPROVADO, resultado.regrasAtendidas(), pendencias);
+        }
+        var registro = new ValidacaoRegistro(request.nomeArquivo(), resultado, chave, Instant.now());
+        registros.save(registro); // registro novo: o persist preenche o id na propria instancia
 
         List<EtapaPipeline> etapas = List.of(
                 new EtapaPipeline(1, "Documento", "Entrada do arquivo para o pipeline", request.nomeArquivo()),
@@ -111,7 +138,20 @@ public class ValidacaoDocumentoService {
                 new EtapaPipeline(5, "Regras de negocio", "Validacao do recibo para reembolso",
                         resultado.status().name()));
 
-        return new ValidacaoResponse(null, request.nomeArquivo(), etapas, dados, resultado);
+        return new ValidacaoResponse(registro.getId(), request.nomeArquivo(), etapas, dados, resultado);
+    }
+
+    /** SHA-256 de "numero|documento do prestador (so digitos)": compara recibos sem guardar os dados. */
+    static String chaveRecibo(DadosRecibo dados) {
+        if (dados.numeroRecibo() == null || dados.documentoPrestador() == null) {
+            return null;
+        }
+        String base = dados.numeroRecibo().trim() + "|" + dados.documentoPrestador().replaceAll("\\D", "");
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(base.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponivel", e);
+        }
     }
 
     private ResultadoValidacao aplicarRegras(DadosRecibo dados, String carteirinha) {
