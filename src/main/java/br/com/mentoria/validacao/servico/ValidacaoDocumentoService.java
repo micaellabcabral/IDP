@@ -25,17 +25,17 @@ public class ValidacaoDocumentoService {
 
     private static final Logger log = LoggerFactory.getLogger(ValidacaoDocumentoService.class);
 
-    private final ExtratorTexto extrator;
+    private final InterpretadorIaService interpretador;
     private final ValidadorRecibo validador;
     private final CadastroBeneficiarios beneficiarios;
     private final OcrService ocr;
     private final OpenCvService openCv;
     private final PdfService pdf;
 
-    public ValidacaoDocumentoService(ExtratorTexto extrator, ValidadorRecibo validador,
+    public ValidacaoDocumentoService(InterpretadorIaService interpretador, ValidadorRecibo validador,
                                      CadastroBeneficiarios beneficiarios, OcrService ocr, OpenCvService openCv,
                                      PdfService pdf) {
-        this.extrator = extrator;
+        this.interpretador = interpretador;
         this.validador = validador;
         this.beneficiarios = beneficiarios;
         this.ocr = ocr;
@@ -87,15 +87,27 @@ public class ValidacaoDocumentoService {
             }
         }
 
-        DadosRecibo dados = extrator.extrair(texto);
+        DadosRecibo dados;
+        String resultadoIa = "Chave da IA nao configurada: extracao local por regex";
+        if (interpretador.configurado()) {
+            try {
+                dados = interpretador.interpretar(texto);
+                resultadoIa = "Interpretado pela OpenAI (CPF e CNPJ mascarados antes do envio)";
+            } catch (IOException | RuntimeException e) {
+                falha("IA", e);
+                dados = interpretador.extrairLocal(texto);
+                resultadoIa = "Falha na IA: extracao local por regex";
+            }
+        } else {
+            dados = interpretador.extrairLocal(texto);
+        }
         ResultadoValidacao resultado = aplicarRegras(dados, request.carteirinhaBeneficiario());
 
         List<EtapaPipeline> etapas = List.of(
                 new EtapaPipeline(1, "Documento", "Entrada do arquivo para o pipeline", request.nomeArquivo()),
                 new EtapaPipeline(2, "OpenCV", "Pre-processamento da imagem", resultadoOpenCv),
                 new EtapaPipeline(3, "Tesseract", "Extracao do texto do documento", resultadoOcr),
-                new EtapaPipeline(4, "IA", "Interpretacao do texto em dados estruturados",
-                        "Extracao local por expressoes regulares"),
+                new EtapaPipeline(4, "IA", "Interpretacao do texto em dados estruturados", resultadoIa),
                 new EtapaPipeline(5, "Regras de negocio", "Validacao do recibo para reembolso",
                         resultado.status().name()));
 

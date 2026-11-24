@@ -16,7 +16,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OcrServiceTest {
 
     private static ValidacaoDocumentoService servico(OcrService ocr) {
-        return new ValidacaoDocumentoService(new ExtratorTexto(), new ValidadorRecibo(12), new CadastroBeneficiarios(),
+        return new ValidacaoDocumentoService(new InterpretadorIaService("", new ExtratorTexto()), new ValidadorRecibo(12),
+                new CadastroBeneficiarios(),
                 ocr, new OpenCvService(""), new PdfService());
     }
 
