@@ -23,6 +23,8 @@ public class ExtratorTexto {
                     + "(\\d{2}\\.?\\d{3}\\.?\\d{3}/?\\d{4}-?\\d{2}|\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2})\\b");
     private static final Pattern REGISTRO_PROFISSIONAL =
             Pattern.compile("(?i)\\b((?:CRM|CRO)[ \\t/-]*[A-Z]{2}[ \\t/-]*\\d{4,6}|CRP[ \\t/-]*\\d{2}[ \\t/-]*\\d{4,6})\\b");
+    private static final Pattern SERVICO =
+            Pattern.compile("(?imu)^\\s*servi[cç]o\\s*:\\s*(.+?)\\s*$");
     private static final Pattern DATA_ATENDIMENTO =
             Pattern.compile("(?im)^\\s*data(?:\\s+do\\s+atendimento)?\\s*:\\s*(\\d{2})/(\\d{2})/(\\d{4})\\b");
     private static final Pattern VALOR =
@@ -39,7 +41,7 @@ public class ExtratorTexto {
                 primeiro(PRESTADOR, conteudo),
                 primeiro(DOCUMENTO_PRESTADOR, conteudo),
                 primeiro(REGISTRO_PROFISSIONAL, conteudo),
-                null,
+                primeiro(SERVICO, conteudo),
                 data(conteudo),
                 valor(conteudo),
                 numeroRecibo(conteudo));

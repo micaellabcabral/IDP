@@ -1,10 +1,19 @@
 package br.com.mentoria.validacao.dominio;
 
+import java.util.regex.Pattern;
+
 public final class Cnpj {
 
     private static final int[] PESOS = {6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
 
+    private static final Pattern NO_TEXTO = Pattern.compile("\\b\\d{2}\\.?\\d{3}\\.?\\d{3}/?\\d{4}-?\\d{2}\\b");
+
     private Cnpj() {
+    }
+
+    /** Troca cada CNPJ do texto por asteriscos antes de o texto sair da aplicacao (por exemplo, para a IA). */
+    public static String mascarar(String texto) {
+        return texto == null ? null : NO_TEXTO.matcher(texto).replaceAll("**.***.***/****-**");
     }
 
     public static boolean valido(String cnpj) {

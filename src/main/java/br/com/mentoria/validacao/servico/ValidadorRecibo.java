@@ -7,6 +7,7 @@ import br.com.mentoria.validacao.dominio.DadosRecibo;
 import br.com.mentoria.validacao.dominio.RegistroProfissional;
 import br.com.mentoria.validacao.dominio.ResultadoValidacao;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -15,14 +16,31 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class ValidadorRecibo {
 
-    private final int prazoAtendimentoMeses;
+    /** Pendencias de campo nao encontrado: indicam leitura incerta (OCR ruim ou valor da IA descartado). */
+    private static final Set<String> CAMPO_AUSENTE = Set.of(
+            "Falhou: Paciente identificado",
+            "Falhou: CPF do paciente encontrado",
+            "Falhou: CPF/CNPJ do prestador encontrado",
+            "Falhou: Registro profissional encontrado",
+            "Data do atendimento nao reconhecida");
 
-    public ValidadorRecibo(@Value("${app.validacao.prazo-atendimento-meses:12}") int prazoAtendimentoMeses) {
+    private final int prazoAtendimentoMeses;
+    private final BigDecimal limiteReembolso;
+
+    public ValidadorRecibo(int prazoAtendimentoMeses) {
+        this(prazoAtendimentoMeses, new BigDecimal("1000.00"));
+    }
+
+    @Autowired
+    public ValidadorRecibo(@Value("${app.validacao.prazo-atendimento-meses:12}") int prazoAtendimentoMeses,
+                           @Value("${app.validacao.limite-reembolso:1000.00}") BigDecimal limiteReembolso) {
         this.prazoAtendimentoMeses = prazoAtendimentoMeses;
+        this.limiteReembolso = limiteReembolso;
     }
 
     public ResultadoValidacao validar(DadosRecibo dados, LocalDate hoje) {
@@ -67,9 +85,20 @@ public class ValidadorRecibo {
         checar(dados.valor() != null && dados.valor().compareTo(BigDecimal.ZERO) > 0,
                 "Valor maior que zero", atendidas, pendencias);
 
-        boolean aprovado = pendencias.isEmpty();
-        return new ResultadoValidacao(aprovado, aprovado ? StatusValidacao.APROVADO : StatusValidacao.REPROVADO,
-                atendidas, pendencias);
+        StatusValidacao status;
+        if (pendencias.isEmpty()) {
+            // recibo correto, mas acima do limite do plano: um analista confere antes de reembolsar
+            boolean acimaDoLimite = dados.valor().compareTo(limiteReembolso) > 0;
+            if (acimaDoLimite) {
+                pendencias.add("Valor acima do limite de reembolso do plano (R$ " + limiteReembolso + "): revisao manual");
+            }
+            status = acimaDoLimite ? StatusValidacao.REVISAO_MANUAL : StatusValidacao.APROVADO;
+        } else {
+            // so faltam campos e algo foi lido: extracao incerta, vai para revisao em vez de reprovar direto
+            boolean soCamposAusentes = CAMPO_AUSENTE.containsAll(pendencias);
+            status = soCamposAusentes && !atendidas.isEmpty() ? StatusValidacao.REVISAO_MANUAL : StatusValidacao.REPROVADO;
+        }
+        return new ResultadoValidacao(status == StatusValidacao.APROVADO, status, atendidas, pendencias);
     }
 
     private static boolean mesmoNome(String a, String b) {
