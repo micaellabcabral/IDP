@@ -14,6 +14,8 @@ const $ = (id) => document.getElementById(id);
 let modo = "arquivo";
 let arquivo = null; // { nome, tipo, base64 }
 let nomeArquivoTexto = "recibo.txt";
+let ultimo = null;      // ultimo recibo validado: { id, nomeArquivo }
+let emRevisao = null;   // recibo aberto no painel de revisao
 
 function el(tag, texto, classe) {
   const e = document.createElement(tag);
@@ -111,6 +113,8 @@ async function validar() {
       const erros = Array.isArray(json.erros) ? json.erros.join("\n") : json.detail;
       return mostrarErro(erros || "Não foi possível validar o recibo. Tente de novo.");
     }
+    const location = r.headers.get("Location");
+    ultimo = { id: location ? Number(location.split("/").pop()) : null, nomeArquivo: json.nomeArquivo };
     mostrarResultado(json);
     carregarHistorico();
   } catch {
@@ -152,6 +156,9 @@ function mostrarResultado(resposta) {
     return li;
   }));
 
+  $("chamada-revisao").hidden = resultado.status !== "REVISAO_MANUAL" || !ultimo || !ultimo.id;
+  $("revisao").hidden = true;
+
   $("resultado").hidden = false;
   $("resultado").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
@@ -164,11 +171,22 @@ async function carregarHistorico() {
       const tr = el("tr");
       const status = el("td");
       status.append(el("span", STATUS[v.status] || v.status, "etiqueta " + v.status));
+      if (v.revisadoManualmente) status.append(el("span", "decidido pelo analista", "revisado"));
+      const pendencias = el("td", v.pendencias.length ? v.pendencias.join("; ") : "Nenhuma");
+      if (v.motivoRevisao) pendencias.append(el("span", "Motivo: " + v.motivoRevisao, "revisado"));
+      const acao = el("td");
+      if (v.status === "REVISAO_MANUAL") {
+        const botao = el("button", "Revisar", "botao");
+        botao.type = "button";
+        botao.addEventListener("click", () => abrirRevisao({ id: v.id, nomeArquivo: v.nomeArquivo }));
+        acao.append(botao);
+      }
       tr.append(
         el("td", new Date(v.criadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })),
         el("td", v.nomeArquivo || "Sem nome"),
         status,
-        el("td", v.pendencias.length ? v.pendencias.join("; ") : "Nenhuma"),
+        pendencias,
+        acao,
       );
       return tr;
     }));
@@ -177,6 +195,59 @@ async function carregarHistorico() {
     $("historico-vazio").hidden = false;
   }
 }
+
+function abrirRevisao(recibo) {
+  emRevisao = recibo;
+  $("revisao-recibo").textContent = "#" + recibo.id + " " + (recibo.nomeArquivo || "");
+  $("motivo").value = "";
+  $("aviso-revisao").hidden = true;
+  $("aviso-revisao").className = "aviso-erro";
+  $("revisao").hidden = false;
+  $("revisao").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  $("motivo").focus({ preventScroll: true });
+}
+
+async function decidir(decisao) {
+  const aviso = $("aviso-revisao");
+  const motivo = $("motivo").value.trim();
+  aviso.className = "aviso-erro";
+  if (!motivo) {
+    aviso.hidden = false;
+    aviso.textContent = "Escreva o motivo da decisão.";
+    return;
+  }
+  try {
+    const r = await fetch("/api/documentos/" + encodeURIComponent(emRevisao.id) + "/revisao", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decisao, motivo }),
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      aviso.hidden = false;
+      aviso.textContent = Array.isArray(json.erros) ? json.erros.join("\n") : (json.detail || "Não foi possível registrar a decisão.");
+      return;
+    }
+    if (ultimo && ultimo.id === emRevisao.id) {
+      $("status").className = "etiqueta " + json.status;
+      $("status").textContent = STATUS[json.status] + " na revisão manual";
+      $("chamada-revisao").hidden = true;
+    }
+    aviso.hidden = false;
+    aviso.className = "aviso-ok";
+    aviso.textContent = decisao === "APROVADO" ? "Reembolso aprovado na revisão manual." : "Recibo reprovado na revisão manual.";
+    setTimeout(() => { $("revisao").hidden = true; }, 1500);
+    carregarHistorico();
+  } catch {
+    aviso.hidden = false;
+    aviso.textContent = "Sem conexão com o servidor. Confira se a aplicação está rodando.";
+  }
+}
+
+$("abrir-revisao").addEventListener("click", () => abrirRevisao(ultimo));
+$("aprovar").addEventListener("click", () => decidir("APROVADO"));
+$("reprovar").addEventListener("click", () => decidir("REPROVADO"));
+$("cancelar-revisao").addEventListener("click", () => { $("revisao").hidden = true; });
 
 $("aba-arquivo").addEventListener("click", () => trocarAba("arquivo"));
 $("aba-texto").addEventListener("click", () => trocarAba("texto"));
