@@ -11,4 +11,6 @@ public interface ValidacaoRegistroRepository extends JpaRepository<ValidacaoRegi
     boolean existsByChaveReciboAndStatusNot(String chaveRecibo, StatusValidacao status);
 
     List<ValidacaoRegistro> findTop20ByOrderByCriadoEmDescIdDesc();
+
+    List<ValidacaoRegistro> findAllByOrderByCriadoEmDescIdDesc();
 }

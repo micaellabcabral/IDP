@@ -4,7 +4,9 @@ import br.com.mentoria.validacao.dominio.ResultadoValidacao;
 import br.com.mentoria.validacao.dominio.RevisaoNaoPermitidaException;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import br.com.mentoria.validacao.seguranca.CampoCriptografado;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -20,7 +22,7 @@ import java.util.List;
 
 /**
  * Resultado de uma validacao. Guarda so o necessario para auditoria e para barrar recibo duplicado:
- * nao guarda o texto do documento, a imagem nem os dados pessoais extraidos (nome, CPF, CNPJ, valor).
+ * nao guarda o texto do documento nem a imagem. Os dados extraidos ficam cifrados (AES-GCM) na coluna dadosExtraidos.
  */
 @Entity
 @Table(indexes = @Index(columnList = "chaveRecibo"))
@@ -59,6 +61,12 @@ public class ValidacaoRegistro {
 
     private Instant revisadoEm;
 
+    /** Dados extraidos do recibo em JSON, gravados cifrados com AES-GCM. Nunca saem no historico. */
+    @JsonIgnore
+    @Convert(converter = CampoCriptografado.class)
+    @Column(length = 4000)
+    private String dadosExtraidos;
+
     protected ValidacaoRegistro() {
     }
 
@@ -84,6 +92,14 @@ public class ValidacaoRegistro {
         this.revisadoManualmente = true;
         this.motivoRevisao = motivo;
         this.revisadoEm = quando;
+    }
+
+    public void guardarDados(String json) {
+        this.dadosExtraidos = json;
+    }
+
+    public String dadosExtraidos() {
+        return dadosExtraidos;
     }
 
     public boolean isRevisadoManualmente() {
