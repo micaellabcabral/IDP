@@ -122,4 +122,36 @@ class ExtratorTextoTest {
         assertThat(dados.nomePaciente()).isNull();
         assertThat(dados.cpfPaciente()).isEqualTo("529.982.247-25");
     }
+
+    /** Layout de boleto bancario: rotulos numa linha e valores em outra, pagador e CPF na mesma linha. */
+    @Test
+    void extraiPagadorENumeroDoDocumentoDeBoleto() {
+        String texto = """
+                Pagador CPF/CNPJ
+                CLINICA BOA SAUDE LTDA 11.222.333/0001-81
+                RUA DAS FLORES, 150 - BOA VIAGEM/RECIFE PE 51021-360
+                JOAO DA SILVA 529.982.247-25
+                R$ 90,00
+                30/11/2025 01/12/2025 00125984581 SIM RG DM
+                Data Documento Dt. de Processamento Num. Documento Carteira Especie Aceite
+                Pagador:
+                CPF/CNPJ: 11.222.333/0001-81
+                """;
+
+        DadosRecibo dados = extrator.extrair(texto);
+
+        assertThat(dados.nomePaciente()).isEqualTo("JOAO DA SILVA");
+        assertThat(dados.cpfPaciente()).isEqualTo("529.982.247-25");
+        assertThat(dados.prestador()).isEqualTo("CLINICA BOA SAUDE LTDA");
+        assertThat(dados.documentoPrestador()).isEqualTo("11.222.333/0001-81");
+        assertThat(dados.numeroRecibo()).isEqualTo("00125984581");
+        assertThat(dados.dataAtendimento()).isEqualTo(LocalDate.of(2025, 11, 30));
+        assertThat(dados.valor()).isEqualByComparingTo(new BigDecimal("90.00"));
+    }
+
+    @Test
+    void numeroDoDocumentoComRotuloNaMesmaLinha() {
+        assertThat(extrator.extrair("Num. Documento: 4471\nPagador: Maria Souza").numeroRecibo()).isEqualTo("4471");
+        assertThat(extrator.extrair("Pagador: Maria Souza").nomePaciente()).isEqualTo("Maria Souza");
+    }
 }
