@@ -7,6 +7,25 @@
 
 Java and Spring Boot system, with a web front end, to validate medical consultation receipts and invoices in health plan reimbursement requests. It takes a PDF or image, extracts the text, structures the data, checks it against the plan member and approves, rejects or sends the receipt to manual review. Built for the Avanade Mentorship 2026.2.
 
+## Quick access
+
+With the system running (`./mvnw spring-boot:run`):
+
+| Page | Link |
+| --- | --- |
+| Receipt validation (main page) | [http://localhost:8080](http://localhost:8080) |
+| Database | [http://localhost:8080/banco.html](http://localhost:8080/banco.html) |
+| Export the database as JSON | [http://localhost:8080/api/banco/exportar](http://localhost:8080/api/banco/exportar) |
+| API sample receipt | [http://localhost:8080/api/documentos/exemplo](http://localhost:8080/api/documentos/exemplo) |
+
+If port 8080 is taken, start on another one and change the number in the links: `./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8765` (then [http://localhost:8765](http://localhost:8765) and [http://localhost:8765/banco.html](http://localhost:8765/banco.html)).
+
+## Database page
+
+`banco.html` (**Banco de Dados** menu) lists every validated receipt: number, file, status, patient, provider, amount, visit date, pending rules and validation date. Each row expands to all the receipt data, the member card and the manual review. Filter by status, search by patient, provider, CPF or file, and **download as JSON** (all records or one) to migrate into another system's database.
+
+In the dev profile H2 is stored in `data/idp.mv.db`, so records survive restarts. Delete `data/` to start fresh.
+
 ## Flow
 
 ```
@@ -38,6 +57,9 @@ The `etapas` field of the response shows which path each stage took.
 | `POST` | `/api/documentos/validar` | Runs the pipeline and returns stages, extracted data and result |
 | `GET` | `/api/documentos` | History: the 20 most recent validations |
 | `GET` | `/api/documentos/{id}` | Returns the stored result of a validation |
+| `POST` | `/api/documentos/{id}/revisao` | Analyst approves or rejects a receipt in manual review (`decisao` and `motivo`) |
+| `GET` | `/api/banco` | Records with the receipt data (database page) |
+| `GET` | `/api/banco/exportar` | JSON download of every record, for migration |
 
 The request takes `nomeArquivo`, `mimeType`, `conteudoDocumento` and/or `imagemBase64`, plus an optional `carteirinhaBeneficiario` (plan member card). The response returns `etapas`, `dadosExtraidos` (patient, CPF, provider, CPF/CNPJ, professional registration, service, visit date, amount and receipt number) and `resultado` (`aprovado`, `status`, `regrasAtendidas`, `pendencias`). The `Location` header points to `GET /api/documentos/{id}`. `mimeType` accepts `application/pdf`, `image/png` and `image/jpeg`; `imagemBase64` is limited to 5 MB. See [README.md](README.md) for full JSON examples.
 
@@ -57,7 +79,7 @@ Status:
 
 - `APROVADO`: every rule met.
 - `REPROVADO`: a rule failed (invalid data, expired deadline, patient different from the member, duplicate receipt), or nothing was extracted.
-- `REVISAO_MANUAL`: uncertain reading (only missing fields and something was read) or an amount above the plan reimbursement limit (`app.validacao.limite-reembolso`, default R$ 1,000.00).
+- `REVISAO_MANUAL`: uncertain reading (only missing fields and something was read) or an amount above the plan reimbursement limit (`app.validacao.limite-reembolso`, default R$ 1,000.00). The analyst checks the original receipt and approves or rejects it on the page (or via the API) with a required reason, kept in the history.
 
 Sample plan members (in-memory registry): `0001234567` (Maria Souza) and `0007654321` (Joao da Silva).
 
@@ -105,7 +127,7 @@ $env:SPRING_PROFILES_ACTIVE="prod"
 ./mvnw spring-boot:run
 ```
 
-prod profile variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` (required).
+prod profile variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` and `APP_DADOS_CHAVE` (the last two required; the key is Base64 of 32 bytes, e.g. `openssl rand -base64 32`).
 
 ## Demo flow
 
@@ -113,8 +135,8 @@ prod profile variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSW
 2. Click **Usar exemplo** and then **Validar recibo**: the receipt comes out **Aprovado**, checked against the member card.
 3. Click **Validar recibo** again: the same receipt is **Reprovado** as a duplicate.
 4. In the **Texto** tab, change the amount to `R$ 1.500,00` and the receipt number to get **Revisão manual**, or change the member card to `0001234567` to show a patient who is not the member.
-5. In the **Arquivo** tab, upload a PDF with text: it is read directly, without OCR.
-6. Show the **Histórico**: it keeps only the result, no personal data.
+5. In the **Arquivo** tab, upload a real PDF receipt: the text is read directly, and provider, patient, CPF/CNPJ, service, date and amount are found even in free-text receipts ("Eu, ..., recebi de ..., a quantia de R$ ...").
+6. Show the **Histórico**, open the **Banco de Dados** page, expand a record and click **Baixar JSON**.
 
 ## Technical decisions
 
@@ -123,7 +145,7 @@ prod profile variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSW
 - **Privacy with the AI**: CPF and CNPJ are masked before the text is sent to OpenAI; CPF, CNPJ, professional registration and amount are read locally with regexes.
 - **Anti-hallucination**: patient, provider, service, date and receipt number returned by the AI are only accepted if they appear in the receipt text.
 - **Duplicate receipts without storing data**: the database keeps only a SHA-256 hash of receipt number + provider document to block resubmissions.
-- **Data minimization**: the database stores only the file name, status, pending rules, timestamp and the hash; never the text, the image, the name, the CPF, the CNPJ or the amount.
+- **Encrypted personal data**: the extracted receipt data and the member card are stored with AES-256-GCM in their own column, so the database file only holds ciphertext. The key comes from `APP_DADOS_CHAVE` (in dev it is generated once in `data/chave-dev.key`, outside Git). The full text and image are never stored, and the main page history and `GET /api/documentos/{id}` show no personal data.
 - **Logs**: errors only record the exception type, and a Logback converter masks any CPF or CNPJ that reaches a log message.
 - **Dependency-free front end**: HTML, CSS and JavaScript served by Spring Boot itself, in a Notion-like style; all API data goes into the page as text, never as HTML, to prevent XSS.
 - **Secrets**: the AI key and the database password come only from environment variables; nothing is stored in the repository.
