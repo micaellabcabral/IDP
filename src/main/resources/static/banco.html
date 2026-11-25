@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Banco de Dados</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<nav class="nav" aria-label="Telas">
+  <a href="/" class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>Validação</a>
+  <a href="/banco.html" class="nav-item ativo" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Banco de Dados</a>
+</nav>
+<main class="pagina larga">
+  <header class="cabecalho">
+    <svg class="icone-pagina" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+    <h1>Banco de Dados</h1>
+    <p class="descricao">Todos os recibos validados, com os dados extraídos de cada um. Baixe em JSON para migrar para o banco de outro sistema.</p>
+  </header>
+
+  <section aria-label="Registros">
+    <div class="barra">
+      <div class="abas" role="group" aria-label="Filtrar por status">
+        <button type="button" class="filtro" data-status="" aria-pressed="true">Todos</button>
+        <button type="button" class="filtro" data-status="APROVADO" aria-pressed="false">Aprovados</button>
+        <button type="button" class="filtro" data-status="REPROVADO" aria-pressed="false">Reprovados</button>
+        <button type="button" class="filtro" data-status="REVISAO_MANUAL" aria-pressed="false">Em revisão</button>
+      </div>
+      <input type="search" id="busca" class="campo busca" placeholder="Buscar por paciente, prestador, CPF ou arquivo" aria-label="Buscar">
+      <div class="barra-acoes">
+        <button type="button" id="atualizar" class="botao">Atualizar</button>
+        <a id="baixar-tudo" class="botao-principal link-botao" href="/api/banco/exportar" download>Baixar JSON</a>
+      </div>
+    </div>
+    <p id="contagem" class="nota"></p>
+    <div class="tabela-rolagem">
+      <table class="banco">
+        <thead>
+        <tr><th>#</th><th>Arquivo</th><th>Status</th><th>Paciente</th><th>Prestador</th><th>Valor</th><th>Atendimento</th><th>Pendências</th><th>Quando</th><th></th></tr>
+        </thead>
+        <tbody id="registros"></tbody>
+      </table>
+    </div>
+    <p id="erro" class="aviso-erro" role="alert" hidden></p>
+  </section>
+</main>
+<script src="banco.js"></script>
+</body>
+</html>
