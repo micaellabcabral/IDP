@@ -1,0 +1,116 @@
+:root {
+  --fundo: #ffffff;
+  --texto: #37352f;
+  --suave: #787774;
+  --linha: #e9e9e7;
+  --realce: #f7f7f5;
+  --primario: #2383e2;
+  --verde-fundo: #dbeddb; --verde-texto: #1c3829;
+  --vermelho-fundo: #ffe2dd; --vermelho-texto: #5d1715;
+  --laranja-fundo: #fadec9; --laranja-texto: #49290e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #191919; --texto: #e6e6e4; --suave: #9b9b98; --linha: #2f2f2f; --realce: #252525; --primario: #529cca;
+    --verde-fundo: #2b593f; --verde-texto: #d6efd9;
+    --vermelho-fundo: #6e3630; --vermelho-texto: #ffe2dd;
+    --laranja-fundo: #5c3b23; --laranja-texto: #fadec9;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.6 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+.pagina { max-width: 760px; margin: 0 auto; padding: 72px 24px 96px; }
+
+.icone-pagina { width: 64px; height: 64px; }
+svg { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+h1 { font-size: 40px; line-height: 1.2; font-weight: 700; margin: 16px 0 8px; }
+h2 { font-size: 24px; font-weight: 600; margin: 48px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--linha); }
+h3 { font-size: 18px; font-weight: 600; margin: 28px 0 8px; }
+.descricao { color: var(--suave); margin: 0; max-width: 62ch; }
+.nota { color: var(--suave); font-size: 14px; margin: 0 0 12px; }
+.rotulo { display: block; font-size: 14px; color: var(--suave); margin-bottom: 6px; }
+
+.abas { display: inline-flex; gap: 2px; padding: 2px; background: var(--realce); border-radius: 6px; margin-bottom: 12px; }
+.abas button { border: 0; background: none; color: var(--suave); font: inherit; font-size: 14px; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
+.abas button[aria-selected="true"] { background: var(--fundo); color: var(--texto); box-shadow: 0 0 0 1px var(--linha); }
+
+.area-arquivo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 20px; border: 1px dashed var(--linha); border-radius: 6px; cursor: pointer; color: var(--suave);
+}
+.area-arquivo:hover, .area-arquivo.arrastando { background: var(--realce); }
+.area-arquivo svg { width: 22px; height: 22px; flex: none; }
+.area-arquivo input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.area-arquivo:focus-within { outline: 2px solid var(--primario); outline-offset: 2px; }
+
+textarea {
+  width: 100%; font: 14px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--texto);
+  background: var(--fundo); border: 1px solid var(--linha); border-radius: 6px; padding: 12px; resize: vertical;
+}
+
+.acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.botao, .botao-principal { font: inherit; font-size: 14px; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
+.botao { background: var(--fundo); color: var(--texto); border: 1px solid var(--linha); }
+.botao:hover { background: var(--realce); }
+.botao-principal { background: var(--primario); color: #fff; border: 1px solid var(--primario); }
+.botao-principal:disabled { opacity: .6; cursor: progress; }
+button:focus-visible, textarea:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
+
+.aviso-erro { margin-top: 12px; padding: 12px 16px; border-radius: 6px; background: var(--vermelho-fundo); color: var(--vermelho-texto); white-space: pre-line; }
+
+.destaque { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px; background: var(--realce); border-radius: 6px; }
+.etiqueta { font-size: 14px; font-weight: 600; padding: 2px 10px; border-radius: 4px; }
+.etiqueta.APROVADO { background: var(--verde-fundo); color: var(--verde-texto); }
+.etiqueta.REPROVADO { background: var(--vermelho-fundo); color: var(--vermelho-texto); }
+.etiqueta.REVISAO_MANUAL { background: var(--laranja-fundo); color: var(--laranja-texto); }
+
+/* a linha que liga as etapas mostra o caminho do documento pelo pipeline */
+.etapas { list-style: none; margin: 0; padding: 0; }
+.etapas li { position: relative; padding: 0 0 18px 40px; }
+.etapas li::before {
+  content: attr(data-ordem); position: absolute; left: 0; top: 0;
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--texto);
+  display: grid; place-items: center; font-size: 13px; background: var(--fundo);
+}
+.etapas li:not(:last-child)::after { content: ""; position: absolute; left: 13px; top: 28px; bottom: 2px; border-left: 1px solid var(--linha); }
+.etapas strong { display: block; font-weight: 600; }
+.etapas span { color: var(--suave); font-size: 14px; }
+
+.propriedades { display: grid; grid-template-columns: 180px 1fr; margin: 0; }
+.propriedades dt, .propriedades dd { margin: 0; padding: 6px 0; border-bottom: 1px solid var(--linha); }
+.propriedades dt { color: var(--suave); font-size: 14px; }
+.propriedades dd.vazio { color: var(--suave); }
+
+.regras { list-style: none; margin: 0; padding: 0; }
+.regras li { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
+.regras svg { width: 18px; height: 18px; flex: none; margin-top: 3px; }
+.regras li.falhou { color: var(--vermelho-texto); }
+@media (prefers-color-scheme: dark) { .regras li.falhou { color: #ff9c8f; } }
+
+.tabela-rolagem { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 500; color: var(--suave); }
+th, td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--linha); vertical-align: top; }
+
+@media (max-width: 560px) {
+  .pagina { padding: 40px 16px 64px; }
+  h1 { font-size: 32px; }
+  .propriedades { grid-template-columns: 1fr; }
+  .propriedades dt { border-bottom: 0; padding-bottom: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.campo-carteirinha { margin-top: 16px; }
+.campo {
+  width: 100%; max-width: 280px; font: inherit; font-size: 14px; color: var(--texto);
+  background: var(--fundo); border: 1px solid var(--linha); border-radius: 6px; padding: 6px 10px;
+}
+.campo:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }

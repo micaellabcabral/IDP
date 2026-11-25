@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Validação de recibos para reembolso</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main class="pagina">
+  <header class="cabecalho">
+    <svg class="icone-pagina" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+    <h1>Validação de recibos para reembolso</h1>
+    <p class="descricao">Envie o recibo ou a nota fiscal de uma consulta médica em PDF ou imagem, ou cole o texto dele. O sistema extrai os dados, confere com o beneficiário do plano e diz se o reembolso pode ser aprovado.</p>
+  </header>
+
+  <section aria-labelledby="titulo-documento">
+    <h2 id="titulo-documento">Recibo</h2>
+    <div class="abas" role="tablist">
+      <button type="button" role="tab" id="aba-arquivo" aria-selected="true" aria-controls="painel-arquivo">Arquivo</button>
+      <button type="button" role="tab" id="aba-texto" aria-selected="false" aria-controls="painel-texto">Texto</button>
+    </div>
+
+    <div id="painel-arquivo" role="tabpanel" aria-labelledby="aba-arquivo">
+      <label class="area-arquivo" id="area-arquivo">
+        <input type="file" id="arquivo" accept="application/pdf,image/png,image/jpeg">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/></svg>
+        <span id="nome-arquivo">Escolha ou arraste um PDF, PNG ou JPG de até 5 MB</span>
+      </label>
+    </div>
+
+    <div id="painel-texto" role="tabpanel" aria-labelledby="aba-texto" hidden>
+      <label for="conteudo" class="rotulo">Texto do recibo</label>
+      <textarea id="conteudo" rows="10" placeholder="Numero do recibo: ...&#10;Paciente: ...&#10;CPF: ...&#10;Profissional: ...&#10;CRM-UF 000000&#10;CNPJ: ...&#10;Data do atendimento: dd/mm/aaaa&#10;Valor: R$ 0,00"></textarea>
+    </div>
+
+    <label for="carteirinha" class="rotulo campo-carteirinha">Carteirinha do beneficiário (opcional)</label>
+    <input id="carteirinha" class="campo" inputmode="numeric" autocomplete="off" placeholder="Ex.: 0007654321">
+
+    <div class="acoes">
+      <button type="button" id="validar" class="botao-principal">Validar recibo</button>
+      <button type="button" id="exemplo" class="botao">Usar exemplo</button>
+    </div>
+    <p id="erro" class="aviso-erro" role="alert" hidden></p>
+  </section>
+
+  <section id="resultado" aria-labelledby="titulo-resultado" hidden>
+    <h2 id="titulo-resultado">Resultado</h2>
+    <div class="destaque">
+      <span id="status" class="etiqueta"></span>
+      <span id="resumo"></span>
+    </div>
+
+    <h3>Etapas do pipeline</h3>
+    <ol id="etapas" class="etapas"></ol>
+
+    <h3>Dados extraídos</h3>
+    <dl id="dados" class="propriedades"></dl>
+
+    <h3>Regras</h3>
+    <ul id="regras" class="regras"></ul>
+  </section>
+
+  <section aria-labelledby="titulo-historico">
+    <h2 id="titulo-historico">Histórico</h2>
+    <p class="nota">Os últimos recibos validados. Por segurança, o histórico guarda só o resultado: nenhum texto, imagem ou dado pessoal do recibo.</p>
+    <div class="tabela-rolagem">
+      <table>
+        <thead><tr><th>Quando</th><th>Arquivo</th><th>Status</th><th>Pendências</th></tr></thead>
+        <tbody id="historico"></tbody>
+      </table>
+    </div>
+    <p id="historico-vazio" class="nota" hidden>Nenhum recibo validado ainda. Valide um recibo para ele aparecer aqui.</p>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
