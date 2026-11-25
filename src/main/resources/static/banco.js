@@ -80,6 +80,7 @@ function linhaDetalhe(r) {
   const resultado = el("div");
   const pares = [
     ["Status", STATUS[r.status] || r.status],
+    ["Regras atendidas", r.regrasAtendidas.length ? r.regrasAtendidas.join("; ") : null],
     ["Pendências", r.pendencias.length ? r.pendencias.join("; ") : "Nenhuma"],
     ["Validado em", quando(r.criadoEm)],
   ];
@@ -88,6 +89,12 @@ function linhaDetalhe(r) {
   }
   resultado.append(el("h3", "Resultado"), propriedades(pares));
   grade.append(recibo, resultado);
+  if (r.etapas.length) {
+    const etapas = el("div");
+    etapas.append(el("h3", "Etapas do pipeline"),
+      propriedades(r.etapas.map((e) => [e.ordem + ". " + e.nome, e.resultado])));
+    grade.append(etapas);
+  }
 
   const acoes = el("div", null, "acoes");
   const botao = el("button", "Baixar JSON deste registro", "botao");

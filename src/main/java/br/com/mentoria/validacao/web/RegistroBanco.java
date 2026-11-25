@@ -1,6 +1,7 @@
 package br.com.mentoria.validacao.web;
 
 import br.com.mentoria.validacao.dominio.DadosRecibo;
+import br.com.mentoria.validacao.dominio.EtapaPipeline;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
 
 import java.time.Instant;
@@ -12,11 +13,13 @@ public record RegistroBanco(
         String nomeArquivo,
         StatusValidacao status,
         boolean aprovado,
+        List<String> regrasAtendidas,
         List<String> pendencias,
         Instant criadoEm,
         boolean revisadoManualmente,
         String motivoRevisao,
         Instant revisadoEm,
         String carteirinhaBeneficiario,
-        DadosRecibo recibo) {
+        DadosRecibo recibo,
+        List<EtapaPipeline> etapas) {
 }
