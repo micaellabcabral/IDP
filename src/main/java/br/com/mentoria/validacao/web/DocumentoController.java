@@ -64,4 +64,10 @@ public class DocumentoController {
     public ResponseEntity<ValidacaoRegistro> buscar(@PathVariable Long id) {
         return ResponseEntity.of(service.buscar(id));
     }
+
+    /** O analista aprova ou reprova um recibo em revisao manual (409 se ele nao estiver em revisao). */
+    @PostMapping("/{id}/revisao")
+    public ResponseEntity<ValidacaoRegistro> revisar(@PathVariable Long id, @Valid @RequestBody RevisaoRequest revisao) {
+        return ResponseEntity.of(service.revisar(id, revisao));
+    }
 }
