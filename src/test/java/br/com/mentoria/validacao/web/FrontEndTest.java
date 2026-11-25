@@ -30,9 +30,19 @@ class FrontEndTest {
     }
 
     @Test
-    void scriptNuncaInsereDadosDaApiComoHtml() throws Exception {
-        mvc.perform(get("/app.js")).andExpect(status().isOk())
-                .andExpect(content().string(not(containsString(".innerHTML"))))
-                .andExpect(content().string(not(containsString(".outerHTML"))));
+    void telaBancoDeDadosTemOBotaoDeExportar() throws Exception {
+        mvc.perform(get("/banco.html")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"baixar-tudo\"")));
+    }
+
+    @Test
+    void scriptsNuncaInseremDadosDaApiComoHtml() throws Exception {
+        for (String script : new String[]{"/app.js", "/banco.js"}) {
+            mvc.perform(get(script)).andExpect(status().isOk())
+                    .andExpect(content().string(not(containsString(".innerHTML"))))
+                    .andExpect(content().string(not(containsString(".outerHTML"))))
+                    .andExpect(content().string(not(containsString("insertAdjacentHTML"))))
+                    .andExpect(content().string(not(containsString("createContextualFragment"))));
+        }
     }
 }
