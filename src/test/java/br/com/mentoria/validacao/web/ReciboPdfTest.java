@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** Um recibo em PDF com texto e lido direto pelo PDFBox, sem precisar do Tesseract. */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Transactional // cada teste desfaz o que gravou: o mesmo recibo nao vira duplicado entre testes
 class ReciboPdfTest {
 
     @Autowired

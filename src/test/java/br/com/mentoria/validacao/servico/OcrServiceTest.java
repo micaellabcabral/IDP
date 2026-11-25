@@ -1,5 +1,6 @@
 package br.com.mentoria.validacao.servico;
 
+import br.com.mentoria.validacao.persistencia.ValidacaoRegistroRepository;
 import br.com.mentoria.validacao.web.ValidacaoRequest;
 import org.junit.jupiter.api.Test;
 
@@ -11,6 +12,7 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 /** Nao depende do Tesseract instalado: cobre a configuracao, o fallback e a limpeza do arquivo temporario. */
 class OcrServiceTest {
@@ -18,7 +20,7 @@ class OcrServiceTest {
     private static ValidacaoDocumentoService servico(OcrService ocr) {
         return new ValidacaoDocumentoService(new InterpretadorIaService("", new ExtratorTexto()), new ValidadorRecibo(12),
                 new CadastroBeneficiarios(),
-                ocr, new OpenCvService(""), new PdfService());
+                ocr, new OpenCvService(""), new PdfService(), mock(ValidacaoRegistroRepository.class));
     }
 
     @Test
