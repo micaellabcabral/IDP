@@ -59,14 +59,33 @@
 
     <h3>Regras</h3>
     <ul id="regras" class="regras"></ul>
+
+    <div id="chamada-revisao" class="chamada" hidden>
+      <span>Este recibo precisa de uma decisão do analista antes do reembolso.</span>
+      <button type="button" id="abrir-revisao" class="botao">Revisar agora</button>
+    </div>
+  </section>
+
+  <section id="revisao" aria-labelledby="titulo-revisao" hidden>
+    <h2 id="titulo-revisao">Revisão manual</h2>
+    <p class="nota">Confira o recibo original e registre a decisão. O motivo fica salvo no histórico.</p>
+    <p id="revisao-recibo" class="revisao-recibo"></p>
+    <label for="motivo" class="rotulo">Motivo da decisão</label>
+    <textarea id="motivo" rows="3" maxlength="500" placeholder="Ex.: confirmei o CRM do profissional no conselho"></textarea>
+    <div class="acoes">
+      <button type="button" id="aprovar" class="botao-principal">Aprovar reembolso</button>
+      <button type="button" id="reprovar" class="botao botao-perigo">Reprovar</button>
+      <button type="button" id="cancelar-revisao" class="botao">Cancelar</button>
+    </div>
+    <p id="aviso-revisao" class="aviso-erro" role="alert" hidden></p>
   </section>
 
   <section aria-labelledby="titulo-historico">
     <h2 id="titulo-historico">Histórico</h2>
-    <p class="nota">Os últimos recibos validados. Por segurança, o histórico guarda só o resultado: nenhum texto, imagem ou dado pessoal do recibo.</p>
+    <p class="nota">Os últimos recibos validados. Por segurança, o histórico guarda só o resultado: nenhum texto, imagem ou dado pessoal do recibo. Recibos em revisão manual podem ser decididos aqui.</p>
     <div class="tabela-rolagem">
       <table>
-        <thead><tr><th>Quando</th><th>Arquivo</th><th>Status</th><th>Pendências</th></tr></thead>
+        <thead><tr><th>Quando</th><th>Arquivo</th><th>Status</th><th>Pendências</th><th></th></tr></thead>
         <tbody id="historico"></tbody>
       </table>
     </div>
