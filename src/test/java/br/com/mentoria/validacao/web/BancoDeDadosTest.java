@@ -86,6 +86,13 @@ class BancoDeDadosTest {
         JsonNode exportacao = json.readTree(corpo);
 
         assertThat(exportacao.path("total").asInt()).isEqualTo(exportacao.path("registros").size());
+        JsonNode registro = registro(exportacao.path("registros"), id);
+        assertThat(registro.path("regrasAtendidas")).isNotEmpty();
+        assertThat(registro.path("pendencias")).isEmpty();
+        assertThat(registro.path("etapas")).hasSize(5);
+        assertThat(registro.path("etapas").path(4).path("resultado").asText()).isEqualTo("APROVADO");
+        // valor em reais com as duas casas: 350.00, e nao 350.0
+        assertThat(corpo).contains("\"valor\":350.00");
         assertThat(registro(exportacao.path("registros"), id).path("recibo").path("dataAtendimento").asText()).hasSize(10);
     }
 }

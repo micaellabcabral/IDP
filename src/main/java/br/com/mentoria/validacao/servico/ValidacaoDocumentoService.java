@@ -10,6 +10,7 @@ import br.com.mentoria.validacao.persistencia.ValidacaoRegistroRepository;
 import br.com.mentoria.validacao.dominio.DadosGuardados;
 import br.com.mentoria.validacao.web.RegistroBanco;
 import br.com.mentoria.validacao.web.RevisaoRequest;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import br.com.mentoria.validacao.web.ValidacaoRequest;
@@ -39,8 +40,10 @@ import java.util.Optional;
 public class ValidacaoDocumentoService {
 
     private static final Logger log = LoggerFactory.getLogger(ValidacaoDocumentoService.class);
+    // BigDecimal lido como BigDecimal (e nao double): R$ 90,00 continua 90.00, sem perder casas
     private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules()
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
 
     private final InterpretadorIaService interpretador;
     private final ValidadorRecibo validador;
@@ -86,9 +89,10 @@ public class ValidacaoDocumentoService {
 
     private static RegistroBanco paraBanco(ValidacaoRegistro r) {
         DadosGuardados d = lerDados(r.dadosExtraidos());
-        return new RegistroBanco(r.getId(), r.getNomeArquivo(), r.getStatus(), r.isAprovado(), r.getPendencias(),
+        return new RegistroBanco(r.getId(), r.getNomeArquivo(), r.getStatus(), r.isAprovado(),
+                d.regrasAtendidas(), r.getPendencias(),
                 r.getCriadoEm(), r.isRevisadoManualmente(), r.getMotivoRevisao(), r.getRevisadoEm(),
-                d.carteirinhaBeneficiario(), d.recibo());
+                d.carteirinhaBeneficiario(), d.recibo(), d.etapas());
     }
 
     private static String json(DadosGuardados dados) {
@@ -101,7 +105,7 @@ public class ValidacaoDocumentoService {
 
     private static DadosGuardados lerDados(String json) {
         if (json == null) {
-            return new DadosGuardados(null, null); // registros gravados antes de os dados serem guardados
+            return new DadosGuardados(null, null, null, null); // registros gravados antes de os dados serem guardados
         }
         try {
             return JSON.readValue(json, DadosGuardados.class);
@@ -181,8 +185,6 @@ public class ValidacaoDocumentoService {
             resultado = new ResultadoValidacao(false, StatusValidacao.REPROVADO, resultado.regrasAtendidas(), pendencias);
         }
         var registro = new ValidacaoRegistro(request.nomeArquivo(), resultado, chave, Instant.now());
-        registro.guardarDados(json(new DadosGuardados(dados, request.carteirinhaBeneficiario())));
-        registros.save(registro); // registro novo: o persist preenche o id na propria instancia
 
         List<EtapaPipeline> etapas = List.of(
                 new EtapaPipeline(1, "Documento", "Entrada do arquivo para o pipeline", request.nomeArquivo()),
@@ -191,6 +193,10 @@ public class ValidacaoDocumentoService {
                 new EtapaPipeline(4, "IA", "Interpretacao do texto em dados estruturados", resultadoIa),
                 new EtapaPipeline(5, "Regras de negocio", "Validacao do recibo para reembolso",
                         resultado.status().name()));
+        // guarda tudo o que a tela mostra (dados, regras atendidas e etapas) para o JSON de migracao sair completo
+        registro.guardarDados(json(new DadosGuardados(dados, request.carteirinhaBeneficiario(),
+                resultado.regrasAtendidas(), etapas)));
+        registros.save(registro); // registro novo: o persist preenche o id na propria instancia
 
         return new ValidacaoResponse(registro.getId(), request.nomeArquivo(), etapas, dados, resultado);
     }
