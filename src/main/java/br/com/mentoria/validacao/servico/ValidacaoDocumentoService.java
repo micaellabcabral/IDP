@@ -7,7 +7,11 @@ import br.com.mentoria.validacao.dominio.ResultadoValidacao;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
 import br.com.mentoria.validacao.persistencia.ValidacaoRegistro;
 import br.com.mentoria.validacao.persistencia.ValidacaoRegistroRepository;
+import br.com.mentoria.validacao.dominio.DadosGuardados;
+import br.com.mentoria.validacao.web.RegistroBanco;
 import br.com.mentoria.validacao.web.RevisaoRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import br.com.mentoria.validacao.web.ValidacaoRequest;
 import br.com.mentoria.validacao.web.ValidacaoResponse;
 import org.slf4j.Logger;
@@ -16,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -34,6 +39,8 @@ import java.util.Optional;
 public class ValidacaoDocumentoService {
 
     private static final Logger log = LoggerFactory.getLogger(ValidacaoDocumentoService.class);
+    private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules()
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private final InterpretadorIaService interpretador;
     private final ValidadorRecibo validador;
@@ -70,6 +77,37 @@ public class ValidacaoDocumentoService {
                     InterpretadorIaService.mascarar(revisao.motivo().strip()), Instant.now());
             return registros.save(registro);
         });
+    }
+
+    /** Todos os registros com os dados do recibo abertos, do mais recente ao mais antigo (tela Banco de Dados). */
+    public List<RegistroBanco> listarBanco() {
+        return registros.findAllByOrderByCriadoEmDescIdDesc().stream().map(ValidacaoDocumentoService::paraBanco).toList();
+    }
+
+    private static RegistroBanco paraBanco(ValidacaoRegistro r) {
+        DadosGuardados d = lerDados(r.dadosExtraidos());
+        return new RegistroBanco(r.getId(), r.getNomeArquivo(), r.getStatus(), r.isAprovado(), r.getPendencias(),
+                r.getCriadoEm(), r.isRevisadoManualmente(), r.getMotivoRevisao(), r.getRevisadoEm(),
+                d.carteirinhaBeneficiario(), d.recibo());
+    }
+
+    private static String json(DadosGuardados dados) {
+        try {
+            return JSON.writeValueAsString(dados);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static DadosGuardados lerDados(String json) {
+        if (json == null) {
+            return new DadosGuardados(null, null); // registros gravados antes de os dados serem guardados
+        }
+        try {
+            return JSON.readValue(json, DadosGuardados.class);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /** As 20 validacoes mais recentes, da mais nova para a mais antiga. */
@@ -143,6 +181,7 @@ public class ValidacaoDocumentoService {
             resultado = new ResultadoValidacao(false, StatusValidacao.REPROVADO, resultado.regrasAtendidas(), pendencias);
         }
         var registro = new ValidacaoRegistro(request.nomeArquivo(), resultado, chave, Instant.now());
+        registro.guardarDados(json(new DadosGuardados(dados, request.carteirinhaBeneficiario())));
         registros.save(registro); // registro novo: o persist preenche o id na propria instancia
 
         List<EtapaPipeline> etapas = List.of(
