@@ -50,6 +50,19 @@ public class ExtratorTexto {
     private static final Pattern DATA_POR_EXTENSO = Pattern.compile(
             "(?iu)\\b(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|mar[c\u00e7]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\\s+de\\s+(\\d{4})\\b");
     private static final Pattern DATA_QUALQUER = Pattern.compile("\\b(\\d{2})/(\\d{2})/(\\d{4})\\b");
+    // Boleto: pagador e CPF na mesma linha, beneficiario (prestador) antes do CNPJ e o numero do documento
+    // na linha de valores, abaixo ou acima dos rotulos (Data do Documento, Num. Documento...)
+    private static final Pattern PAGADOR = Pattern.compile("(?imu)^[ \\t]*(?:pagador|sacado)[ \\t]*:[ \\t]*([\\p{L}][\\p{L} .'-]+?)[ \\t]*$");
+    private static final Pattern NOME_E_CPF = Pattern.compile(
+            "(?mu)^[ \\t]*([\\p{L}][\\p{L} .'-]{3,}?)[ \\t]*[-\u2013|,]?[ \\t]*(?:CPF(?:[ \\t]*/[ \\t]*CNPJ)?[ \\t]*:?[ \\t]*)?(\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2})\\b");
+    private static final Pattern NOME_ANTES_DO_CNPJ = Pattern.compile(
+            "(?mu)^[ \\t]*([\\p{L}][\\p{L} .'-]{3,}?)[ \\t]*[-\u2013|,]?[ \\t]*(?:CNPJ[ \\t]*:?[ \\t]*)?\\d{2}\\.?\\d{3}\\.?\\d{3}/\\d{4}-?\\d{2}\\b");
+    private static final Pattern NUMERO_DOCUMENTO = Pattern.compile(
+            "(?iu)\\bn(?:u|\u00fa)m(?:ero|\\.)?[ \\t]+(?:do[ \\t]+)?documento[ \\t]*:?[ \\t]*(\\d{4,20})\\b");
+    private static final Pattern LINHA_DE_VALORES_DO_BOLETO = Pattern.compile(
+            "(?m)^[ \\t]*\\d{2}/\\d{2}/\\d{4}[ \\t]+(?:\\d{2}/\\d{2}/\\d{4}[ \\t]+)?(\\d{6,20})\\b");
+    private static final Pattern MENCIONA_DOCUMENTO = Pattern.compile("(?iu)\\bdocumento\\b");
+
     private static final java.util.List<String> MESES = java.util.List.of("janeiro", "fevereiro", "marco", "abril", "maio",
             "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro");
 
@@ -63,16 +76,22 @@ public class ExtratorTexto {
         Matcher recebi = RECEBI.matcher(conteudo);
         String antes = recebi.find() ? conteudo.substring(0, recebi.start()) : null;
         String depois = antes == null ? null : conteudo.substring(recebi.start());
+        Matcher nomeECpf = NOME_E_CPF.matcher(conteudo);
+        boolean temNomeECpf = nomeECpf.find();
         return new DadosRecibo(
-                ou(primeiro(PACIENTE, conteudo), primeiro(PACIENTE_TEXTO, conteudo)),
-                ou(primeiro(CPF_PACIENTE, conteudo), depois == null ? null : grupo0(CPF, depois)),
-                ou(primeiro(PRESTADOR, conteudo), primeiro(PRESTADOR_TEXTO, conteudo), primeiro(PRESTADOR_DOUTOR, conteudo)),
+                ou(primeiro(PACIENTE, conteudo), primeiro(PACIENTE_TEXTO, conteudo), primeiro(PAGADOR, conteudo),
+                        temNomeECpf ? nomeECpf.group(1) : null),
+                ou(primeiro(CPF_PACIENTE, conteudo), depois == null ? null : grupo0(CPF, depois),
+                        temNomeECpf ? nomeECpf.group(2) : null),
+                ou(primeiro(PRESTADOR, conteudo), primeiro(PRESTADOR_TEXTO, conteudo), primeiro(PRESTADOR_DOUTOR, conteudo),
+                        primeiro(NOME_ANTES_DO_CNPJ, conteudo)),
                 ou(primeiro(DOCUMENTO_PRESTADOR, conteudo), antes == null ? null : primeiro(CPF_OU_CNPJ, antes)),
                 primeiro(REGISTRO_PROFISSIONAL, conteudo),
                 ou(primeiro(SERVICO, conteudo), primeiro(SERVICO_TEXTO, conteudo)),
                 data(conteudo),
                 valor(conteudo),
-                numeroRecibo(conteudo));
+                ou(numeroRecibo(conteudo), primeiro(NUMERO_DOCUMENTO, conteudo),
+                        MENCIONA_DOCUMENTO.matcher(conteudo).find() ? primeiro(LINHA_DE_VALORES_DO_BOLETO, conteudo) : null));
     }
 
     private static String ou(String... valores) {
