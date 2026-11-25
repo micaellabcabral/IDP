@@ -1,6 +1,7 @@
 package br.com.mentoria.validacao.persistencia;
 
 import br.com.mentoria.validacao.dominio.ResultadoValidacao;
+import br.com.mentoria.validacao.dominio.RevisaoNaoPermitidaException;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
@@ -50,6 +51,14 @@ public class ValidacaoRegistro {
     @Column(length = 64)
     private String chaveRecibo;
 
+    /** Decisao do analista quando o recibo caiu em revisao manual. */
+    private boolean revisadoManualmente;
+
+    @Column(length = 500)
+    private String motivoRevisao;
+
+    private Instant revisadoEm;
+
     protected ValidacaoRegistro() {
     }
 
@@ -60,6 +69,33 @@ public class ValidacaoRegistro {
         this.pendencias = String.join(SEPARADOR, resultado.pendencias());
         this.chaveRecibo = chaveRecibo;
         this.criadoEm = criadoEm;
+    }
+
+    /** O analista aprova ou reprova um recibo que estava em revisao manual; o motivo fica registrado. */
+    public void revisar(StatusValidacao decisao, String motivo, Instant quando) {
+        if (status != StatusValidacao.REVISAO_MANUAL) {
+            throw new RevisaoNaoPermitidaException();
+        }
+        if (decisao == StatusValidacao.REVISAO_MANUAL) {
+            throw new IllegalArgumentException("Decisao deve ser APROVADO ou REPROVADO");
+        }
+        this.status = decisao;
+        this.aprovado = decisao == StatusValidacao.APROVADO;
+        this.revisadoManualmente = true;
+        this.motivoRevisao = motivo;
+        this.revisadoEm = quando;
+    }
+
+    public boolean isRevisadoManualmente() {
+        return revisadoManualmente;
+    }
+
+    public String getMotivoRevisao() {
+        return motivoRevisao;
+    }
+
+    public Instant getRevisadoEm() {
+        return revisadoEm;
     }
 
     public Long getId() {

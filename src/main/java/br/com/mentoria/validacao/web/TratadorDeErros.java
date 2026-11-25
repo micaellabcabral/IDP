@@ -1,5 +1,6 @@
 package br.com.mentoria.validacao.web;
 
+import br.com.mentoria.validacao.dominio.RevisaoNaoPermitidaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,11 @@ public class TratadorDeErros {
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail naoEncontrado() {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Recurso nao encontrado");
+    }
+
+    @ExceptionHandler(RevisaoNaoPermitidaException.class)
+    public ProblemDetail revisaoNaoPermitida(RevisaoNaoPermitidaException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

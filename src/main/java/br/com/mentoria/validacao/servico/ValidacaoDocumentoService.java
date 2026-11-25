@@ -7,11 +7,13 @@ import br.com.mentoria.validacao.dominio.ResultadoValidacao;
 import br.com.mentoria.validacao.dominio.StatusValidacao;
 import br.com.mentoria.validacao.persistencia.ValidacaoRegistro;
 import br.com.mentoria.validacao.persistencia.ValidacaoRegistroRepository;
+import br.com.mentoria.validacao.web.RevisaoRequest;
 import br.com.mentoria.validacao.web.ValidacaoRequest;
 import br.com.mentoria.validacao.web.ValidacaoResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -55,6 +57,19 @@ public class ValidacaoDocumentoService {
 
     public Optional<ValidacaoRegistro> buscar(Long id) {
         return registros.findById(id);
+    }
+
+    /**
+     * Registra a decisao do analista. Vazio se o id nao existe; RevisaoNaoPermitidaException se o recibo
+     * nao esta em revisao manual. CPF e CNPJ digitados no motivo sao mascarados antes de salvar.
+     */
+    @Transactional
+    public Optional<ValidacaoRegistro> revisar(Long id, RevisaoRequest revisao) {
+        return registros.findById(id).map(registro -> {
+            registro.revisar(StatusValidacao.valueOf(revisao.decisao()),
+                    InterpretadorIaService.mascarar(revisao.motivo().strip()), Instant.now());
+            return registros.save(registro);
+        });
     }
 
     /** As 20 validacoes mais recentes, da mais nova para a mais antiga. */
