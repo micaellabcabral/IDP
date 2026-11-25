@@ -7,6 +7,25 @@
 
 Sistema em Java e Spring Boot, com front-end web, para validar recibos e notas fiscais de consultas médicas em pedidos de reembolso de plano de saúde. Recebe um PDF ou imagem, extrai o texto, estrutura os dados, confere com o beneficiário do plano e aprova, reprova ou encaminha para revisão manual. Projeto da Mentoria Avanade 2026.2.
 
+## Acesso rápido
+
+Com o sistema rodando (`./mvnw spring-boot:run`):
+
+| Tela | Link |
+| --- | --- |
+| Validação de recibos (tela principal) | [http://localhost:8080](http://localhost:8080) |
+| Banco de Dados | [http://localhost:8080/banco.html](http://localhost:8080/banco.html) |
+| Exportar o banco em JSON | [http://localhost:8080/api/banco/exportar](http://localhost:8080/api/banco/exportar) |
+| Recibo de exemplo da API | [http://localhost:8080/api/documentos/exemplo](http://localhost:8080/api/documentos/exemplo) |
+
+Se a porta 8080 estiver ocupada, suba em outra e troque o número nos links: `./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8765` (então [http://localhost:8765](http://localhost:8765) e [http://localhost:8765/banco.html](http://localhost:8765/banco.html)).
+
+## Banco de Dados
+
+A tela `banco.html` (menu **Banco de Dados**) lista todos os recibos validados: número, arquivo, status, paciente, prestador, valor, data do atendimento, pendências e data da validação. Cada linha abre todos os dados do recibo, a carteirinha e a revisão manual. Dá para filtrar por status, buscar por paciente, prestador, CPF ou arquivo e **baixar em JSON** todos os registros (ou um só), para migrar para o banco de outro sistema.
+
+No perfil dev o H2 é gravado em `data/idp.mv.db`, então os registros continuam lá depois de reiniciar. Para zerar, apague a pasta `data/`.
+
 ## Fluxo
 
 ```
@@ -38,6 +57,9 @@ A resposta mostra, em `etapas`, qual caminho foi usado em cada etapa.
 | `POST` | `/api/documentos/validar` | Executa o pipeline e devolve etapas, dados extraídos e resultado |
 | `GET` | `/api/documentos` | Histórico: as 20 validações mais recentes |
 | `GET` | `/api/documentos/{id}` | Consulta o resultado salvo de uma validação |
+| `POST` | `/api/documentos/{id}/revisao` | Analista aprova ou reprova um recibo em revisão manual (`decisao` e `motivo`) |
+| `GET` | `/api/banco` | Registros com os dados dos recibos (tela Banco de Dados) |
+| `GET` | `/api/banco/exportar` | Download do JSON com todos os registros, para migração |
 
 Request de `POST /api/documentos/validar` (envie `conteudoDocumento`, `imagemBase64` ou ambos; `carteirinhaBeneficiario` é opcional):
 
@@ -97,7 +119,7 @@ Status:
 
 - `APROVADO`: todas as regras atendidas.
 - `REPROVADO`: alguma regra falhou (dado inválido, prazo vencido, paciente diferente do beneficiário, recibo duplicado), ou nada foi extraído.
-- `REVISAO_MANUAL`: leitura incerta (só faltam campos e parte foi lida) ou valor acima do limite de reembolso do plano (`app.validacao.limite-reembolso`, padrão R$ 1.000,00).
+- `REVISAO_MANUAL`: leitura incerta (só faltam campos e parte foi lida) ou valor acima do limite de reembolso do plano (`app.validacao.limite-reembolso`, padrão R$ 1.000,00). O analista confere o recibo original e aprova ou reprova pela tela (ou pela API), com motivo obrigatório; a decisão fica no histórico.
 
 Beneficiários de exemplo (cadastro em memória): `0001234567` (Maria Souza) e `0007654321` (Joao da Silva).
 
@@ -145,16 +167,16 @@ $env:SPRING_PROFILES_ACTIVE="prod"
 ./mvnw spring-boot:run
 ```
 
-Variáveis do perfil prod: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD` (obrigatória).
+Variáveis do perfil prod: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` e `APP_DADOS_CHAVE` (obrigatórias as duas últimas; a chave é o Base64 de 32 bytes, por exemplo `openssl rand -base64 32`).
 
 ## Fluxo para demo
 
 1. Suba a aplicação com `./mvnw spring-boot:run` e abra `http://localhost:8080`.
 2. Clique em **Usar exemplo** e depois em **Validar recibo**: o recibo sai **Aprovado**, conferido com o beneficiário da carteirinha.
 3. Clique em **Validar recibo** de novo: o mesmo recibo é **Reprovado** como duplicado.
-4. Na aba **Texto**, troque o valor por `R$ 1.500,00` e o número do recibo para ver **Revisão manual**, ou troque a carteirinha por `0001234567` para ver o paciente diferente do beneficiário.
-5. Na aba **Arquivo**, envie um PDF com texto: ele é lido direto, sem OCR.
-6. Mostre o **Histórico**: ele guarda só o resultado, sem dados pessoais.
+4. Na aba **Texto**, troque o valor por `R$ 1.500,00` e o número do recibo para ver **Revisão manual**; clique em **Revisar agora**, escreva o motivo e aprove ou reprove. Troque a carteirinha por `0001234567` para ver o paciente diferente do beneficiário.
+5. Na aba **Arquivo**, envie um recibo real em PDF: o texto é lido direto, sem OCR, e prestador, paciente, CPF/CNPJ, serviço, data e valor são encontrados mesmo em recibo de texto corrido ("Eu, ..., recebi de ..., a quantia de R$ ...").
+6. Mostre o **Histórico**, abra a tela **Banco de Dados**, expanda um registro e clique em **Baixar JSON**.
 
 ## Decisões técnicas
 
@@ -163,7 +185,7 @@ Variáveis do perfil prod: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASS
 - **Privacidade com a IA**: CPF e CNPJ são mascarados antes de o texto ir para a OpenAI; CPF, CNPJ, registro profissional e valor são lidos localmente por regex.
 - **Anti-alucinação**: paciente, prestador, serviço, data e número do recibo devolvidos pela IA só são aceitos se aparecem no texto do recibo.
 - **Recibo duplicado sem guardar dados**: o banco guarda só um hash SHA-256 de número do recibo + documento do prestador para barrar reenvios.
-- **Minimização de dados**: o banco guarda só nome do arquivo, status, pendências, data e o hash; nunca o texto, a imagem, o nome, o CPF, o CNPJ ou o valor.
+- **Dados pessoais cifrados**: os dados extraídos do recibo e a carteirinha são gravados com AES-256-GCM numa coluna própria; quem abre o arquivo do banco só vê texto cifrado. A chave vem de `APP_DADOS_CHAVE` (no dev, é gerada uma vez em `data/chave-dev.key`, fora do Git). O texto completo e a imagem nunca são gravados, e o histórico da tela principal e `GET /api/documentos/{id}` não mostram dados pessoais.
 - **Logs**: erros registram apenas o tipo da exceção e um conversor do Logback mascara qualquer CPF ou CNPJ que chegue a uma mensagem.
 - **Front-end sem dependências**: HTML, CSS e JavaScript servidos pelo próprio Spring Boot, no estilo Notion; todo dado da API entra na página como texto, nunca como HTML, para evitar XSS.
 - **Segredos**: chave da IA e senha do banco só por variável de ambiente; nada no repositório.
@@ -188,9 +210,10 @@ IDP/
 │   ├── servico/       # ValidacaoDocumentoService, PdfService, OpenCvService, OcrService,
 │   │                  # InterpretadorIaService, ExtratorTexto, ValidadorRecibo, CadastroBeneficiarios
 │   ├── persistencia/  # ValidacaoRegistro, ValidacaoRegistroRepository
+│   ├── seguranca/     # Cifra (AES-256-GCM), CampoCriptografado
 │   └── log/           # MascaraDadosPessoaisConverter
 ├── src/main/resources/  # application.properties, application-dev/prod.properties, logback-spring.xml
-│   └── static/        # front-end: index.html, app.css, app.js
+│   └── static/        # telas: index.html (Validação), banco.html (Banco de Dados), app.css, app.js, banco.js
 ├── scripts/preprocessar_documento.py
 ├── docker-compose.yml
 └── pom.xml
